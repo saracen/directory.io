@@ -6,8 +6,9 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/conformal/btcec"
-	"github.com/conformal/btcutil"
+	"github.com/btcsuite/btcec"
+	"github.com/btcsuite/btcnet"
+	"github.com/btcsuite/btcutil"
 )
 
 const ResultsPerPage = 128
@@ -82,15 +83,16 @@ func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
 		// Copy count value's bytes to padded slice
 		copy(padded[32-len(count.Bytes()):], count.Bytes())
 
-		// Get public key
-		_, public := btcec.PrivKeyFromBytes(btcec.S256(), padded[:])
+		// Get private and public keys
+		privKey, public := btcec.PrivKeyFromBytes(btcec.S256(), padded[:])
 
 		// Get compressed and uncompressed addresses for public key
-		caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), 0xd9b4bef9)
-		uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), 0xd9b4bef9)
+		caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), &btcnet.MainNetParams)
+		uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), &btcnet.MainNetParams)
 
 		// Encode addresses
-		keys[i].private, _ = btcutil.EncodePrivateKey(padded[:], 0xd9b4bef9, false)
+		wif, _ := btcutil.NewWIF(privKey, &btcnet.MainNetParams, false)
+		keys[i].private = wif.String()
 		keys[i].number = count.String()
 		keys[i].compressed = caddr.EncodeAddress()
 		keys[i].uncompressed = uaddr.EncodeAddress()
@@ -147,18 +149,18 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 func RedirectRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[36:]
 
-	priv, _, _, err := btcutil.DecodePrivateKey(key)
+	wif, err := btcutil.DecodeWIF(key)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	page, _ := new(big.Int).DivMod(new(big.Int).SetBytes(priv), big.NewInt(ResultsPerPage), big.NewInt(ResultsPerPage))
+	page, _ := new(big.Int).DivMod(new(big.Int).SetBytes(wif.PrivKey.D.Bytes()), big.NewInt(ResultsPerPage), big.NewInt(ResultsPerPage))
 	page.Add(page, one)
 
-	fragment, _ := btcutil.EncodePrivateKey(priv, 0xd9b4bef9, false)
+	fragment, _ := btcutil.NewWIF(wif.PrivKey, &btcnet.MainNetParams, false)
 
-	http.Redirect(w, r, "/"+page.String()+"#"+fragment, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/"+page.String()+"#"+fragment.String(), http.StatusTemporaryRedirect)
 }
 
 func main() {
