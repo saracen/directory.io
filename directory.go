@@ -13,10 +13,11 @@ import (
 
 const ResultsPerPage = 128
 
-const PageTemplateHeader = `<html>
+const PageTemplateHeader = `<!DOCTYPE HTML>
+<html>
 <head>
 	<title>All bitcoin private keys</title>
-	<meta charset="utf8" />
+	<meta charset="utf-8" />
 	<link href="http://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
 	<style>
 		body{font-size: 9pt; font-family: 'Open Sans', sans-serif;}
