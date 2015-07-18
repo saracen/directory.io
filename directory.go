@@ -45,7 +45,7 @@ It took a lot of computing power to generate this database. Donations welcome: 1
 
 const KeyTemplate = `<span id="%s"><a href="/warning:understand-how-this-works!/%s">+</a> <span title="%s">%s </span> <a href="https://blockchain.info/address/%s">%34s</a> <a href="https://blockchain.info/address/%s">%34s</a></span>
 `
-
+const JsonKeyTemplate=`{"private":"%s", "number":"%s", "compressed":"%s", "uncompressed":"%s"}`
 var (
 	// Total bitcoins
 	total = new(big.Int).SetBytes([]byte{
@@ -68,9 +68,30 @@ type Key struct {
 	uncompressed string
 }
 
-func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
+func computeSingle(count *big.Int) (key Key){
 	var padded [32]byte
 
+	// Copy count value's bytes to padded slice
+	copy(padded[32-len(count.Bytes()):], count.Bytes())
+
+	// Get private and public keys
+	privKey, public := btcec.PrivKeyFromBytes(btcec.S256(), padded[:])
+
+	// Get compressed and uncompressed addresses for public key
+	caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), &chaincfg.MainNetParams)
+	uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), &chaincfg.MainNetParams)
+
+	// Encode addresses
+	wif, _ := btcutil.NewWIF(privKey, &chaincfg.MainNetParams, false)
+	key.private = wif.String()
+	key.number = count.String()
+	key.compressed = caddr.EncodeAddress()
+	key.uncompressed = uaddr.EncodeAddress()
+
+	return key
+}
+
+func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
 	var i int
 	for i = 0; i < ResultsPerPage; i++ {
 		// Increment our counter
@@ -80,23 +101,7 @@ func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
 		if count.Cmp(total) > 0 {
 			break
 		}
-
-		// Copy count value's bytes to padded slice
-		copy(padded[32-len(count.Bytes()):], count.Bytes())
-
-		// Get private and public keys
-		privKey, public := btcec.PrivKeyFromBytes(btcec.S256(), padded[:])
-
-		// Get compressed and uncompressed addresses for public key
-		caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), &chaincfg.MainNetParams)
-		uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), &chaincfg.MainNetParams)
-
-		// Encode addresses
-		wif, _ := btcutil.NewWIF(privKey, &chaincfg.MainNetParams, false)
-		keys[i].private = wif.String()
-		keys[i].number = count.String()
-		keys[i].compressed = caddr.EncodeAddress()
-		keys[i].uncompressed = uaddr.EncodeAddress()
+		keys [i] = computeSingle (count)
 	}
 	return keys, i
 }
@@ -147,6 +152,36 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, PageTemplateFooter, previous, next)
 }
 
+func JsonSingleRequest(w http.ResponseWriter, r *http.Request) {
+	// Default page is page 1
+	if len(r.URL.Path) <= 1 {
+		r.URL.Path = "/1"
+	}
+	// Convert page number to bignum
+	count, success := new(big.Int).SetString(r.URL.Path[12:], 0)
+
+	if !success {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// Make sure page number cannot be negative or 0
+	count.Abs(count)
+	if count.Cmp(one) == -1 {
+		count.SetInt64(1)
+	}
+
+	// Make sure we're not above page count
+	if count.Cmp(total) > 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	aComputed := computeSingle(count)
+	fmt.Fprintf(w,JsonKeyTemplate, aComputed.private, aComputed.number, aComputed.compressed, aComputed.uncompressed)
+}
+
 func RedirectRequest(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[36:]
 
@@ -167,7 +202,7 @@ func RedirectRequest(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", PageRequest)
 	http.HandleFunc("/warning:understand-how-this-works!/", RedirectRequest)
-
+	http.HandleFunc("/jsonSingle/", JsonSingleRequest)
 	log.Println("Listening")
 	log.Fatal(http.ListenAndServe(":8085", nil))
 }
