@@ -18,24 +18,29 @@ const PageTemplateHeader = `<!DOCTYPE HTML>
 <head>
 	<title>All bitcoin private keys</title>
 	<meta charset="utf-8" />
-	<link href="http://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
 	<style>
-		body{font-size: 9pt; font-family: 'Open Sans', sans-serif;}
+		body{font-size: 9pt;}
 		a{text-decoration: none}
 		a:hover {text-decoration: underline}
 		.keys > span:hover { background: #f0f0f0; }
 		span:target { background: #ccffcc; }
+		td{
+			font-family: monospace;
+			padding-left: 0.5em;
+			padding-right: 0.5em;
+			text-align: right
+		}
 	</style>
 </head>
 <body>
 <h1>Bitcoin private key database</h1>
 <h2>Page %s out of %s</h2>
 <a href="/%s">previous</a> | <a href="/%s">next</a>
-<pre class="keys">
-<strong>Private Key</strong>                                            <strong>Address</strong>                            <strong>Compressed Address</strong>
+<table class="keys">
+<tr><th>index</th><th>Private Key</th><th>Address</th><th>Compressed Address</th></tr>
 `
 
-const PageTemplateFooter = `</pre>
+const PageTemplateFooter = `</table>
 <pre style="margin-top: 1em; font-size: 8pt">
 It took a lot of computing power to generate this database. Donations welcome: 1Bv8dN7pemC5N3urfMDdAFReibefrBqCaK
 </pre>
@@ -43,8 +48,8 @@ It took a lot of computing power to generate this database. Donations welcome: 1
 </body>
 </html>`
 
-const KeyTemplate = `<span id="%s"><a href="/warning:understand-how-this-works!/%s">+</a> <span title="%s">%s </span> <a href="https://blockchain.info/address/%s">%34s</a> <a href="https://blockchain.info/address/%s">%34s</a></span>
-`
+const KeyTemplate = `<tr><td id="%s">%d</td><td><!-- a href="/warning:understand-how-this-works!/%s">+</a--> <span title="%s">%s </span></td><td><a href="https://blockchain.info/address/%s">%34s</a></td><td><a href="https://blockchain.info/address/%s">%34s</a></td></tr>`
+
 const JsonKeyTemplate=`{"private":"%s", "number":"%s", "compressed":"%s", "uncompressed":"%s"}`
 var (
 	// Total bitcoins
@@ -143,9 +148,10 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Send keys
 	keys, length := compute(start)
+
 	for i := 0; i < length; i++ {
 		key := keys[i]
-		fmt.Fprintf(w, KeyTemplate, key.private, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
+		fmt.Fprintf(w, KeyTemplate, key.private, i+1, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
 	}
 
 	// Send page footer
