@@ -35,6 +35,7 @@ const PageTemplateHeader = `<!DOCTYPE HTML>
 <body>
 <h1>Bitcoin private key database</h1>
 <h2>Page %s out of %s</h2>
+<h3>total: %s</h3>
 <a href="/%s">previous</a> | <a href="/%s">next</a>
 <table class="keys">
 <tr><th>index</th><th>Private Key</th><th>Address</th><th>Compressed Address</th></tr>
@@ -144,7 +145,7 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 	start := new(big.Int).Mul(previous, big.NewInt(ResultsPerPage))
 
 	// Send page header
-	fmt.Fprintf(w, PageTemplateHeader, page, pages, previous, next)
+	fmt.Fprintf(w, PageTemplateHeader, page, pages, total, previous, next)
 
 	// Send keys
 	keys, length := compute(start)
