@@ -11,7 +11,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 )
 
-const ResultsPerPage = 128
+const ResultsPerPage = 64
 
 const PageTemplateHeader = `<!DOCTYPE HTML>
 <html>
@@ -29,6 +29,19 @@ const PageTemplateHeader = `<!DOCTYPE HTML>
 			padding-left: 0.5em;
 			padding-right: 0.5em;
 			text-align: right
+		}
+		.row1{
+			background-color: #ffffdd;
+		}
+		.row2{
+			background-color: #ffdddd;
+		}
+		.row3{
+			background-color: #ddffdd;
+		}
+		.index{
+			background-color: white;
+			color: gray;
 		}
 	</style>
 </head>
@@ -49,7 +62,7 @@ It took a lot of computing power to generate this database. Donations welcome: 1
 </body>
 </html>`
 
-const KeyTemplate = `<tr><td id="%s">%d</td><td><!-- a href="/warning:understand-how-this-works!/%s">+</a--> <span title="%s">%s </span></td><td><a href="https://blockchain.info/address/%s">%34s</a></td><td><a href="https://blockchain.info/address/%s">%34s</a></td></tr>`
+const KeyTemplate = `<tr class="%s"><td id="%s" class="index">%d</td><td><!-- a href="/warning:understand-how-this-works!/%s">+</a--> <span title="%s">%s </span></td><td><a href="https://blockchain.info/address/%s">%34s</a></td><td><a href="https://blockchain.info/address/%s">%34s</a></td></tr>`
 
 const JsonKeyTemplate=`{"private":"%s", "number":"%s", "compressed":"%s", "uncompressed":"%s"}`
 var (
@@ -152,7 +165,13 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 
 	for i := 0; i < length; i++ {
 		key := keys[i]
-		fmt.Fprintf(w, KeyTemplate, key.private, i+1, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
+		var classe string
+		switch (i%3){
+			case 0: classe = "row1"
+			case 1: classe = "row2"
+			case 2: classe = "row3"
+		}
+		fmt.Fprintf(w, KeyTemplate, classe, key.private, i+1, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
 	}
 
 	// Send page footer
