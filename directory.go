@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/btcsuite/btcec"
-	"github.com/btcsuite/btcnet"
+	"github.com/btcsuite/btcd/btcec"
+	btcnet "github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
 )
 
