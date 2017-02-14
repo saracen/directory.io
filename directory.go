@@ -31,13 +31,13 @@ const PageTemplateHeader = `<!DOCTYPE HTML>
 			text-align: right
 		}
 		.row1{
-			background-color: #ffffdd;
+			background-color: #ffffff;
 		}
 		.row2{
-			background-color: #ffdddd;
+			background-color: #eeeeee;
 		}
 		.row3{
-			background-color: #ddffdd;
+			background-color: #dddddd;
 		}
 		.index{
 			background-color: white;
