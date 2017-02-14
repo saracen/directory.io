@@ -1,0 +1,25 @@
+body{font-size: 9pt;}
+a{text-decoration: none}
+a:hover {text-decoration: underline}
+.keys > span:hover { background: #f0f0f0; }
+span:target { background: #ccffcc; }
+td{
+	font-family: monospace;
+	padding-left: 0.5em;
+	padding-right: 0.5em;
+	text-align: right
+}
+.row1{
+	background-color: #ffffff;
+}
+.row2{
+	background-color: #eeeeee;
+}
+.row3{
+	background-color: #dddddd;
+}
+.index{
+	background-color: white;
+	color: gray;
+}
+	

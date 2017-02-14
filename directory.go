@@ -9,6 +9,8 @@ import (
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
+
+	"io/ioutil"
 )
 
 const ResultsPerPage = 64
@@ -18,31 +20,8 @@ const PageTemplateHeader = `<!DOCTYPE HTML>
 <head>
 	<title>All bitcoin private keys</title>
 	<meta charset="utf-8" />
-	<style>
-		body{font-size: 9pt;}
-		a{text-decoration: none}
-		a:hover {text-decoration: underline}
-		.keys > span:hover { background: #f0f0f0; }
-		span:target { background: #ccffcc; }
-		td{
-			font-family: monospace;
-			padding-left: 0.5em;
-			padding-right: 0.5em;
-			text-align: right
-		}
-		.row1{
-			background-color: #ffffff;
-		}
-		.row2{
-			background-color: #eeeeee;
-		}
-		.row3{
-			background-color: #dddddd;
-		}
-		.index{
-			background-color: white;
-			color: gray;
-		}
+	<style type="text/css">
+	@import url(directory.css);
 	</style>
 </head>
 <body>
@@ -225,10 +204,24 @@ func RedirectRequest(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+page.String()+"#"+fragment.String(), http.StatusTemporaryRedirect)
 }
 
+func check(e error) {
+    if e != nil {
+       panic(e)
+    }
+}
+
+func DirectoryCSS (w http.ResponseWriter, r *http.Request){
+	dat, err := ioutil.ReadFile("directory.css")
+	check(err)
+	w.Header().Set("Content-Type", "text/css")
+	fmt.Fprintf(w, string(dat))
+}
+
 func main() {
 	http.HandleFunc("/", PageRequest)
 	http.HandleFunc("/warning:understand-how-this-works!/", RedirectRequest)
 	http.HandleFunc("/jsonSingle/", JsonSingleRequest)
+	http.HandleFunc("/directory.css", DirectoryCSS)
 	log.Println("Listening")
 	log.Fatal(http.ListenAndServe(":8085", nil))
 }
