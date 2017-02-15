@@ -144,12 +144,8 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 
 	for i := 0; i < length; i++ {
 		key := keys[i]
-		var classe string
-		switch (i%3){
-			case 0: classe = "row1"
-			case 1: classe = "row2"
-			case 2: classe = "row3"
-		}
+		classes := []string{"row3", "row2", "row1"}
+		var classe string = classes [i%3]
 		fmt.Fprintf(w, KeyTemplate, classe, key.private, i+1, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
 	}
 
