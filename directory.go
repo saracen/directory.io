@@ -66,6 +66,10 @@ type Key struct {
 	uncompressed string
 }
 
+/*
+func computePublic () (key Key){
+}
+*/
 func computeSingle(count *big.Int) (key Key){
 	var padded [32]byte
 
@@ -135,6 +139,7 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Calculate our starting key from page number
 	start := new(big.Int).Mul(previous, big.NewInt(ResultsPerPage))
+	iter := new(big.Int).Mul(previous, big.NewInt(ResultsPerPage))
 
 	// Send page header
 	fmt.Fprintf(w, PageTemplateHeader, page, pages, total, previous, next)
@@ -143,10 +148,12 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 	keys, length := compute(start)
 
 	for i := 0; i < length; i++ {
+		iter.Add(iter, one)
+
 		key := keys[i]
 		classes := []string{"row3", "row2", "row1"}
 		var classe string = classes [i%3]
-		fmt.Fprintf(w, KeyTemplate, classe, key.private, i+1, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
+		fmt.Fprintf(w, KeyTemplate, classe, key.private, /*i+1*/iter, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
 	}
 
 	// Send page footer
