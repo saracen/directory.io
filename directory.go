@@ -6,35 +6,34 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/btcsuite/btcec"
-	"github.com/btcsuite/btcnet"
 	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg"
+
+	"io/ioutil"
 )
 
-const ResultsPerPage = 128
+const ResultsPerPage = 64
 
-const PageTemplateHeader = `<html>
+const PageTemplateHeader = `<!DOCTYPE HTML>
+<html>
 <head>
 	<title>All bitcoin private keys</title>
-	<meta charset="utf8" />
-	<link href="http://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
-	<style>
-		body{font-size: 9pt; font-family: 'Open Sans', sans-serif;}
-		a{text-decoration: none}
-		a:hover {text-decoration: underline}
-		.keys > span:hover { background: #f0f0f0; }
-		span:target { background: #ccffcc; }
+	<meta charset="utf-8" />
+	<style type="text/css">
+	@import url(directory.css);
 	</style>
 </head>
 <body>
 <h1>Bitcoin private key database</h1>
 <h2>Page %s out of %s</h2>
+<h3>total: %s</h3>
 <a href="/%s">previous</a> | <a href="/%s">next</a>
-<pre class="keys">
-<strong>Private Key</strong>                                            <strong>Address</strong>                            <strong>Compressed Address</strong>
+<table class="keys">
+<tr><th>index</th><th>Private Key</th><th>Address</th><th>Compressed Address</th></tr>
 `
 
-const PageTemplateFooter = `</pre>
+const PageTemplateFooter = `</table>
 <pre style="margin-top: 1em; font-size: 8pt">
 It took a lot of computing power to generate this database. Donations welcome: 1Bv8dN7pemC5N3urfMDdAFReibefrBqCaK
 </pre>
@@ -42,9 +41,9 @@ It took a lot of computing power to generate this database. Donations welcome: 1
 </body>
 </html>`
 
-const KeyTemplate = `<span id="%s"><a href="/warning:understand-how-this-works!/%s">+</a> <span title="%s">%s </span> <a href="https://blockchain.info/address/%s">%34s</a> <a href="https://blockchain.info/address/%s">%34s</a></span>
-`
+const KeyTemplate = `<tr class="%s"><td id="%s" class="index">%d</td><td><!-- a href="/warning:understand-how-this-works!/%s">+</a--> <span title="%s">%s </span></td><td><a href="https://blockchain.info/address/%s">%34s</a></td><td><a href="https://blockchain.info/address/%s">%34s</a></td></tr>`
 
+const JsonKeyTemplate=`{"private":"%s", "number":"%s", "compressed":"%s", "uncompressed":"%s"}`
 var (
 	// Total bitcoins
 	total = new(big.Int).SetBytes([]byte{
@@ -67,9 +66,30 @@ type Key struct {
 	uncompressed string
 }
 
-func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
+func computeSingle(count *big.Int) (key Key){
 	var padded [32]byte
 
+	// Copy count value's bytes to padded slice
+	copy(padded[32-len(count.Bytes()):], count.Bytes())
+
+	// Get private and public keys
+	privKey, public := btcec.PrivKeyFromBytes(btcec.S256(), padded[:])
+
+	// Get compressed and uncompressed addresses for public key
+	caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), &chaincfg.MainNetParams)
+	uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), &chaincfg.MainNetParams)
+
+	// Encode addresses
+	wif, _ := btcutil.NewWIF(privKey, &chaincfg.MainNetParams, false)
+	key.private = wif.String()
+	key.number = count.String()
+	key.compressed = caddr.EncodeAddress()
+	key.uncompressed = uaddr.EncodeAddress()
+
+	return key
+}
+
+func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
 	var i int
 	for i = 0; i < ResultsPerPage; i++ {
 		// Increment our counter
@@ -79,23 +99,7 @@ func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
 		if count.Cmp(total) > 0 {
 			break
 		}
-
-		// Copy count value's bytes to padded slice
-		copy(padded[32-len(count.Bytes()):], count.Bytes())
-
-		// Get private and public keys
-		privKey, public := btcec.PrivKeyFromBytes(btcec.S256(), padded[:])
-
-		// Get compressed and uncompressed addresses for public key
-		caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), &btcnet.MainNetParams)
-		uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), &btcnet.MainNetParams)
-
-		// Encode addresses
-		wif, _ := btcutil.NewWIF(privKey, &btcnet.MainNetParams, false)
-		keys[i].private = wif.String()
-		keys[i].number = count.String()
-		keys[i].compressed = caddr.EncodeAddress()
-		keys[i].uncompressed = uaddr.EncodeAddress()
+		keys [i] = computeSingle (count)
 	}
 	return keys, i
 }
@@ -131,19 +135,55 @@ func PageRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Calculate our starting key from page number
 	start := new(big.Int).Mul(previous, big.NewInt(ResultsPerPage))
+	iter := new(big.Int).Mul(previous, big.NewInt(ResultsPerPage))
 
 	// Send page header
-	fmt.Fprintf(w, PageTemplateHeader, page, pages, previous, next)
+	fmt.Fprintf(w, PageTemplateHeader, page, pages, total, previous, next)
 
 	// Send keys
 	keys, length := compute(start)
+
 	for i := 0; i < length; i++ {
+		iter.Add(iter, one)
+
 		key := keys[i]
-		fmt.Fprintf(w, KeyTemplate, key.private, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
+		classes := []string{"row3", "row2", "row1"}
+		var classe string = classes [i%3]
+		fmt.Fprintf(w, KeyTemplate, classe, key.private, /*i+1*/iter, key.private, key.number, key.private, key.uncompressed, key.uncompressed, key.compressed, key.compressed)
 	}
 
 	// Send page footer
 	fmt.Fprintf(w, PageTemplateFooter, previous, next)
+}
+
+func JsonSingleRequest(w http.ResponseWriter, r *http.Request) {
+	// Default page is page 1
+	if len(r.URL.Path) <= 1 {
+		r.URL.Path = "/1"
+	}
+	// Convert page number to bignum
+	count, success := new(big.Int).SetString(r.URL.Path[12:], 0)
+
+	if !success {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// Make sure page number cannot be negative or 0
+	count.Abs(count)
+	if count.Cmp(one) == -1 {
+		count.SetInt64(1)
+	}
+
+	// Make sure we're not above page count
+	if count.Cmp(total) > 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	aComputed := computeSingle(count)
+	fmt.Fprintf(w,JsonKeyTemplate, aComputed.private, aComputed.number, aComputed.compressed, aComputed.uncompressed)
 }
 
 func RedirectRequest(w http.ResponseWriter, r *http.Request) {
@@ -158,15 +198,29 @@ func RedirectRequest(w http.ResponseWriter, r *http.Request) {
 	page, _ := new(big.Int).DivMod(new(big.Int).SetBytes(wif.PrivKey.D.Bytes()), big.NewInt(ResultsPerPage), big.NewInt(ResultsPerPage))
 	page.Add(page, one)
 
-	fragment, _ := btcutil.NewWIF(wif.PrivKey, &btcnet.MainNetParams, false)
+	fragment, _ := btcutil.NewWIF(wif.PrivKey, &chaincfg.MainNetParams, false)
 
 	http.Redirect(w, r, "/"+page.String()+"#"+fragment.String(), http.StatusTemporaryRedirect)
+}
+
+func check(e error) {
+    if e != nil {
+       panic(e)
+    }
+}
+
+func DirectoryCSS (w http.ResponseWriter, r *http.Request){
+	dat, err := ioutil.ReadFile("directory.css")
+	check(err)
+	w.Header().Set("Content-Type", "text/css")
+	fmt.Fprintf(w, string(dat))
 }
 
 func main() {
 	http.HandleFunc("/", PageRequest)
 	http.HandleFunc("/warning:understand-how-this-works!/", RedirectRequest)
-
+	http.HandleFunc("/jsonSingle/", JsonSingleRequest)
+	http.HandleFunc("/directory.css", DirectoryCSS)
 	log.Println("Listening")
 	log.Fatal(http.ListenAndServe(":8085", nil))
 }
