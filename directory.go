@@ -66,10 +66,6 @@ type Key struct {
 	uncompressed string
 }
 
-/*
-func computePublic () (key Key){
-}
-*/
 func computeSingle(count *big.Int) (key Key){
 	var padded [32]byte
 
