@@ -5,7 +5,7 @@ directory.io
 
 ##### Install dependencies:
 ```bash
-$ go get github.com/btcsuite/btcutil
+$ go get github.com/btcsuite/btcd
 ```
 
 ##### Run:
