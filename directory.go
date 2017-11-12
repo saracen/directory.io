@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/btcsuite/btcec"
-	"github.com/btcsuite/btcnet"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
 )
 
@@ -87,11 +87,11 @@ func compute(count *big.Int) (keys [ResultsPerPage]Key, length int) {
 		privKey, public := btcec.PrivKeyFromBytes(btcec.S256(), padded[:])
 
 		// Get compressed and uncompressed addresses for public key
-		caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), &btcnet.MainNetParams)
-		uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), &btcnet.MainNetParams)
+		caddr, _ := btcutil.NewAddressPubKey(public.SerializeCompressed(), &chaincfg.MainNetParams)
+		uaddr, _ := btcutil.NewAddressPubKey(public.SerializeUncompressed(), &chaincfg.MainNetParams)
 
 		// Encode addresses
-		wif, _ := btcutil.NewWIF(privKey, &btcnet.MainNetParams, false)
+		wif, _ := btcutil.NewWIF(privKey, &chaincfg.MainNetParams, false)
 		keys[i].private = wif.String()
 		keys[i].number = count.String()
 		keys[i].compressed = caddr.EncodeAddress()
@@ -158,7 +158,7 @@ func RedirectRequest(w http.ResponseWriter, r *http.Request) {
 	page, _ := new(big.Int).DivMod(new(big.Int).SetBytes(wif.PrivKey.D.Bytes()), big.NewInt(ResultsPerPage), big.NewInt(ResultsPerPage))
 	page.Add(page, one)
 
-	fragment, _ := btcutil.NewWIF(wif.PrivKey, &btcnet.MainNetParams, false)
+	fragment, _ := btcutil.NewWIF(wif.PrivKey, &chaincfg.MainNetParams, false)
 
 	http.Redirect(w, r, "/"+page.String()+"#"+fragment.String(), http.StatusTemporaryRedirect)
 }
