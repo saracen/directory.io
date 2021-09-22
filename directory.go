@@ -155,8 +155,11 @@ func RedirectRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page, _ := new(big.Int).DivMod(new(big.Int).SetBytes(wif.PrivKey.D.Bytes()), big.NewInt(ResultsPerPage), big.NewInt(ResultsPerPage))
-	page.Add(page, one)
+	page, mod := new(big.Int).DivMod(new(big.Int).SetBytes(wif.PrivKey.D.Bytes()), big.NewInt(ResultsPerPage), big.NewInt(ResultsPerPage))
+
+	if mod.Cmp(new(big.Int)) != 0 {
+		page.Add(page, one)
+	}
 
 	fragment, _ := btcutil.NewWIF(wif.PrivKey, &chaincfg.MainNetParams, false)
 
