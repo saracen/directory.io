@@ -3,11 +3,6 @@ directory.io
 
 ##### [Install Go](http://golang.org/doc/install)
 
-##### Install dependencies:
-```bash
-$ go get github.com/btcsuite/btcd
-```
-
 ##### Run:
 ```bash
 $ go run directory.go
